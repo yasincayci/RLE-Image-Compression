@@ -83,6 +83,19 @@ class BmpTypeSummaryRow:
     zigzag_64_block_wins: int
 
 
+@dataclass
+class BlockValueFeatureRow:
+    scene: str
+    bmp_type: str
+    block_size: int
+    block_row: int
+    block_col: int
+    unique_values: int
+    row_change_ratio: float
+    col_change_ratio: float
+    dominant_direction: str
+
+
 SCAN_FLATTEN = {
     "row_major": flatten_row_major,
     "col_major": flatten_col_major,
@@ -258,6 +271,63 @@ def _compute_bmp_type_summary(
     return out
 
 
+def _block_change_ratios(block: List[List[int]]) -> Tuple[float, float]:
+    h = len(block)
+    w = len(block[0]) if h else 0
+    if h == 0 or w == 0:
+        return 0.0, 0.0
+
+    row_total = 0
+    row_changes = 0
+    col_total = 0
+    col_changes = 0
+
+    for y in range(h):
+        for x in range(w - 1):
+            row_total += 1
+            if block[y][x] != block[y][x + 1]:
+                row_changes += 1
+
+    for y in range(h - 1):
+        for x in range(w):
+            col_total += 1
+            if block[y][x] != block[y + 1][x]:
+                col_changes += 1
+
+    row_ratio = (row_changes / row_total) if row_total else 0.0
+    col_ratio = (col_changes / col_total) if col_total else 0.0
+    return row_ratio, col_ratio
+
+
+def _compute_block_value_features(scene_name: str, bmp_type: str, pixels: List[List[int]]) -> List[BlockValueFeatureRow]:
+    rows: List[BlockValueFeatureRow] = []
+    for block_row, block_col, block in _iter_blocks(pixels, block_size=64):
+        flat = [v for row in block for v in row]
+        row_ratio, col_ratio = _block_change_ratios(block)
+
+        if abs(row_ratio - col_ratio) <= 0.005:
+            dominant = "balanced"
+        elif row_ratio < col_ratio:
+            dominant = "horizontal_continuity"
+        else:
+            dominant = "vertical_continuity"
+
+        rows.append(
+            BlockValueFeatureRow(
+                scene=scene_name,
+                bmp_type=bmp_type,
+                block_size=64,
+                block_row=block_row,
+                block_col=block_col,
+                unique_values=len(set(flat)),
+                row_change_ratio=round(row_ratio, 4),
+                col_change_ratio=round(col_ratio, 4),
+                dominant_direction=dominant,
+            )
+        )
+    return rows
+
+
 def _save_indexed_preview_png(path: Path, pixels: List[List[int]], palette: List[Tuple[int, int, int]]) -> None:
     h = len(pixels)
     w = len(pixels[0]) if h else 0
@@ -356,6 +426,7 @@ def _try_generate_local_report(
     block_rows: List[BlockResultRow],
     bmp_block_rows: List[BmpBlockComparisonRow],
     bmp_summary_rows: List[BmpTypeSummaryRow],
+    block_value_features: List[BlockValueFeatureRow],
 ) -> None:
     local_builder = project_root / "local" / "reporting" / "report_builder.py"
     if not local_builder.exists():
@@ -381,6 +452,7 @@ def _try_generate_local_report(
         block_rows=[asdict(r) for r in block_rows],
         bmp_block_rows=[asdict(r) for r in bmp_block_rows],
         bmp_summary=[asdict(r) for r in bmp_summary_rows],
+        block_value_features=[asdict(r) for r in block_value_features],
     )
 
 
@@ -412,6 +484,7 @@ def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) ->
 
     results: List[ResultRow] = []
     block_rows: List[BlockResultRow] = []
+    block_value_features: List[BlockValueFeatureRow] = []
 
     for bmp_type in BMP_ORDER:
         variant = variants[bmp_type]
@@ -426,6 +499,7 @@ def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) ->
         _write_pixel_values(pixel_path, pixels)
 
         block_rows.extend(_compute_block64_analysis(scene_name, bmp_type, pixels))
+        block_value_features.extend(_compute_block_value_features(scene_name, bmp_type, pixels))
 
         src_bmp = read_indexed_bmp(bmp_path)
         original_size = bmp_path.stat().st_size
@@ -477,6 +551,11 @@ def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) ->
         results_dir / "bmp_scan_summary.csv",
         results_dir / "bmp_scan_summary.json",
     )
+    _write_rows_csv_json(
+        block_value_features,
+        results_dir / "block64_value_features.csv",
+        results_dir / "block64_value_features.json",
+    )
 
     _write_markdown_tables(
         output_path=results_dir / "results_tables.md",
@@ -492,6 +571,7 @@ def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) ->
         block_rows=block_rows,
         bmp_block_rows=bmp_block_rows,
         bmp_summary_rows=bmp_summary,
+        block_value_features=block_value_features,
     )
 
     return results

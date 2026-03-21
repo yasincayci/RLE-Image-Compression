@@ -88,29 +88,29 @@ BMP-type preview images (PNG previews so GitHub renders correctly):
 
 | BMP Type | Row Major (%) | Col Major (%) | Zigzag 64 (%) | Best Scan |
 |---|---:|---:|---:|---|
-| bw_1bit | 78.57 | 82.62 | 72.10 | col_major |
-| gray_4bit | 43.66 | 46.34 | 35.82 | col_major |
-| palette_8bit | 34.08 | 28.91 | 25.65 | row_major |
+| bw_1bit | 78.61 | 82.62 | 72.10 | col_major |
+| gray_4bit | 44.43 | 46.34 | 35.82 | col_major |
+| palette_8bit | 34.26 | 28.91 | 25.65 | row_major |
 
 ### Block-Winner Counts by BMP Type (64x64)
 
 | BMP Type | Row Wins | Col Wins | Zigzag Wins |
 |---|---:|---:|---:|
 | bw_1bit | 52 | 11 | 1 |
-| gray_4bit | 38 | 22 | 4 |
-| palette_8bit | 49 | 11 | 4 |
+| gray_4bit | 40 | 24 | 0 |
+| palette_8bit | 55 | 8 | 1 |
 
 ### Full 3x3 Matrix
 
 | BMP Type | Scan Mode | Original (bytes) | Compressed (bytes) | Compression Rate (%) | Compression Performance (%) | Lossless |
 |---|---|---:|---:|---:|---:|---|
-| bw_1bit | row_major | 32830 | 7034 | 21.43 | 78.57 | True |
+| bw_1bit | row_major | 32830 | 7022 | 21.39 | 78.61 | True |
 | bw_1bit | col_major | 32830 | 5706 | 17.38 | 82.62 | True |
 | bw_1bit | zigzag_64 | 32830 | 9161 | 27.90 | 72.10 | True |
-| gray_4bit | row_major | 131190 | 73906 | 56.34 | 43.66 | True |
+| gray_4bit | row_major | 131190 | 72904 | 55.57 | 44.43 | True |
 | gray_4bit | col_major | 131190 | 70397 | 53.66 | 46.34 | True |
 | gray_4bit | zigzag_64 | 131190 | 84197 | 64.18 | 35.82 | True |
-| palette_8bit | row_major | 263222 | 173506 | 65.92 | 34.08 | True |
+| palette_8bit | row_major | 263222 | 173033 | 65.74 | 34.26 | True |
 | palette_8bit | col_major | 263222 | 187130 | 71.09 | 28.91 | True |
 | palette_8bit | zigzag_64 | 263222 | 195702 | 74.35 | 25.65 | True |
 
@@ -130,6 +130,8 @@ Block-level behavior is format-dependent and does not always match a single univ
 - [results/block64_results.json](results/block64_results.json)
 - [results/block64_bmp_scan_comparison.csv](results/block64_bmp_scan_comparison.csv)
 - [results/block64_bmp_scan_comparison.json](results/block64_bmp_scan_comparison.json)
+- [results/block64_value_features.csv](results/block64_value_features.csv)
+- [results/block64_value_features.json](results/block64_value_features.json)
 - [results/bmp_scan_summary.csv](results/bmp_scan_summary.csv)
 - [results/bmp_scan_summary.json](results/bmp_scan_summary.json)
 - [results/results_tables.md](results/results_tables.md)

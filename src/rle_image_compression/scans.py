@@ -8,11 +8,29 @@ Matrix = List[List[int]]
 
 
 def flatten_row_major(pixels: Matrix) -> List[int]:
-    return [value for row in pixels for value in row]
+    # Row-row rotate (serpentine): even rows L->R, odd rows R->L.
+    output: List[int] = []
+    for y, row in enumerate(pixels):
+        if y % 2 == 0:
+            output.extend(row)
+        else:
+            output.extend(reversed(row))
+    return output
 
 
 def unflatten_row_major(values: Sequence[int], width: int, height: int) -> Matrix:
-    return [list(values[y * width : (y + 1) * width]) for y in range(height)]
+    output = [[0 for _ in range(width)] for _ in range(height)]
+    idx = 0
+    for y in range(height):
+        if y % 2 == 0:
+            for x in range(width):
+                output[y][x] = values[idx]
+                idx += 1
+        else:
+            for x in range(width - 1, -1, -1):
+                output[y][x] = values[idx]
+                idx += 1
+    return output
 
 
 def flatten_col_major(pixels: Matrix) -> List[int]:
@@ -20,8 +38,13 @@ def flatten_col_major(pixels: Matrix) -> List[int]:
     width = len(pixels[0])
     output: List[int] = []
     for x in range(width):
-        for y in range(height):
-            output.append(pixels[y][x])
+        # Col-col rotate (serpentine): even cols T->B, odd cols B->T.
+        if x % 2 == 0:
+            for y in range(height):
+                output.append(pixels[y][x])
+        else:
+            for y in range(height - 1, -1, -1):
+                output.append(pixels[y][x])
     return output
 
 
@@ -29,9 +52,14 @@ def unflatten_col_major(values: Sequence[int], width: int, height: int) -> Matri
     output = [[0 for _ in range(width)] for _ in range(height)]
     idx = 0
     for x in range(width):
-        for y in range(height):
-            output[y][x] = values[idx]
-            idx += 1
+        if x % 2 == 0:
+            for y in range(height):
+                output[y][x] = values[idx]
+                idx += 1
+        else:
+            for y in range(height - 1, -1, -1):
+                output[y][x] = values[idx]
+                idx += 1
     return output
 
 

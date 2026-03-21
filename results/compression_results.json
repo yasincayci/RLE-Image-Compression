@@ -4,9 +4,9 @@
     "bmp_type": "bw_1bit",
     "scan_mode": "row_major",
     "original_size_bytes": 32830,
-    "compressed_size_bytes": 7034,
-    "compression_rate_percent": 21.43,
-    "compression_performance_percent": 78.57,
+    "compressed_size_bytes": 7022,
+    "compression_rate_percent": 21.39,
+    "compression_performance_percent": 78.61,
     "lossless": true
   },
   {
@@ -34,9 +34,9 @@
     "bmp_type": "gray_4bit",
     "scan_mode": "row_major",
     "original_size_bytes": 131190,
-    "compressed_size_bytes": 73906,
-    "compression_rate_percent": 56.34,
-    "compression_performance_percent": 43.66,
+    "compressed_size_bytes": 72904,
+    "compression_rate_percent": 55.57,
+    "compression_performance_percent": 44.43,
     "lossless": true
   },
   {
@@ -64,9 +64,9 @@
     "bmp_type": "palette_8bit",
     "scan_mode": "row_major",
     "original_size_bytes": 263222,
-    "compressed_size_bytes": 173506,
-    "compression_rate_percent": 65.92,
-    "compression_performance_percent": 34.08,
+    "compressed_size_bytes": 173033,
+    "compression_rate_percent": 65.74,
+    "compression_performance_percent": 34.26,
     "lossless": true
   },
   {
