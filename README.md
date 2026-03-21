@@ -1,78 +1,61 @@
-# RLE Image Compression (BMP + Scan Modes)
+# RLE Image Compression Benchmark
 
-This project benchmarks lossless hybrid RLE compression on indexed BMP images using three scan modes.
+Lossless hybrid RLE compression benchmark on indexed BMP images with three scan modes.
 
-- BMP formats: `bw_1bit`, `gray_4bit`, `palette_8bit`
-- Scan modes (RLE traversal): `row_major`, `col_major`, `zigzag_64`
-- Source: default `skimage_rocket` (or user image with `--input-image`)
-- Preprocess canvas: `256x256` (aspect-ratio preserved + padded, 64x64 zigzag-aligned)
-- Validation: decode output is checked pixel-by-pixel (lossless)
+## Overview
 
-## Run
+- Image variants: `bw_1bit`, `gray_4bit`, `palette_8bit`
+- Scan modes: `row_major`, `col_major`, `zigzag_64`
+- Default source: `skimage.data.rocket()`
+- Preprocess: aspect-ratio preserved + square padding (`384x384`)
+- Validation: all encoded files are decoded and compared pixel-by-pixel
+
+## Quick Start
 
 ```bash
 pip install -r requirements.txt
 python run_pipeline.py
 ```
 
-Optional external input:
+Run with external input:
 
 ```bash
 python run_pipeline.py --input-image path/to/image.png
 ```
 
-## Project Layout
-
-Requested pipe-style structure:
+## Professional Project Structure
 
 ```text
-|
-|-- run_pipeline.py
-|
-|-- src
-|   |
-|   |----- rle_image_compression
-|          |--------- dataset.py
-|          |--------- bmp_codec.py
-|          |--------- scans.py
-|          |--------- rle_codec.py
-|          |--------- pipeline.py
-|
-|-- images
-|   |
-|   |----- generated_sources
-|   |----- previews
-|   |----- bmp
-|   |----- decompressed
-|   |----- pixel_values
-|
-|-- results
-|   |
-|   |----- compression_results.csv
-|   |----- compression_results.json
-|   |----- block64_results.csv
-|   |----- block64_bmp_scan_comparison.csv
-|   |----- bmp_scan_summary.csv
-|   |----- results_tables.md
+RLE-Image-Compression/
+|-- run_pipeline.py                          # CLI entrypoint: runs the full experiment pipeline
+|-- requirements.txt                         # Python dependencies
+|-- README.md                                # Project documentation
+|-- src/
+|   `-- rle_image_compression/
+|       |-- __init__.py                      # Package marker
+|       |-- dataset.py                       # Source loading, resize/pad, BMP variant preparation
+|       |-- bmp_codec.py                     # Indexed BMP read/write and header reconstruction
+|       |-- scans.py                         # Scan and inverse-scan implementations
+|       |-- rle_codec.py                     # Hybrid RLE encode/decode and metrics
+|       `-- pipeline.py                      # Orchestration, experiment runs, output generation
+|-- images/
+|   |-- generated_sources/                   # Prepared source images used in experiments
+|   |-- previews/                            # PNG previews for BMP variants
+|   |-- bmp/                                 # Generated indexed BMP files
+|   |-- decompressed/                        # Decoded BMP files for lossless verification
+|   `-- pixel_values/                        # Pixel matrix dumps
+|-- encoded/                                 # Serialized RLE outputs (.rle)
+|-- results/                                 # CSV/JSON/Markdown benchmark outputs
+`-- local/                                   # Local-only report and helper files
 ```
 
-## Report Strategy (Not Pushed)
-
-Report generation logic is moved to a local-only area and excluded from git:
-
-- Local report builder code: `local/reporting/report_builder.py`
-- Local report output: `local/reports/REPORT.md`
-- Git behavior: `local/` is ignored in [\.gitignore](.gitignore)
-
-This keeps report creation available on your machine without pushing report tooling/artifacts.
-
-## Source and BMP Visuals
+## Visual Preview
 
 Default source image:
 
-![source](images/generated_sources/skimage_rocket_256.png)
+![source](images/generated_sources/skimage_rocket_384.png)
 
-BMP-type preview images (PNG previews so GitHub renders correctly):
+BMP previews:
 
 ### bw_1bit
 ![bw_1bit](images/previews/skimage_rocket_bw_1bit.png)
@@ -83,47 +66,39 @@ BMP-type preview images (PNG previews so GitHub renders correctly):
 ### palette_8bit
 ![palette_8bit](images/previews/skimage_rocket_palette_8bit.png)
 
-## Main Results (Markdown Tables)
+## Current Benchmark Results
 
 ### Global Performance by BMP Type
 
 | BMP Type | Row Major (%) | Col Major (%) | Zigzag 64 (%) | Best Scan |
 |---|---:|---:|---:|---|
-| bw_1bit | 76.19 | 80.05 | 68.89 | col_major |
-| gray_4bit | 37.90 | 39.94 | 26.13 | col_major |
-| palette_8bit | 29.26 | 21.11 | 18.62 | row_major |
+| bw_1bit | 78.57 | 81.03 | 73.35 | col_major |
+| gray_4bit | 41.77 | 43.91 | 34.74 | col_major |
+| palette_8bit | 31.37 | 25.10 | 24.27 | row_major |
 
-### Block-Winner Counts by BMP Type (64x64)
+### Block Winner Counts (64x64)
 
 | BMP Type | Row Wins | Col Wins | Zigzag Wins |
 |---|---:|---:|---:|
-| bw_1bit | 11 | 5 | 0 |
-| gray_4bit | 7 | 9 | 0 |
-| palette_8bit | 13 | 2 | 1 |
+| bw_1bit | 29 | 7 | 0 |
+| gray_4bit | 19 | 17 | 0 |
+| palette_8bit | 29 | 6 | 1 |
 
 ### Full 3x3 Matrix
 
 | BMP Type | Scan Mode | Original (bytes) | Compressed (bytes) | Compression Rate (%) | Compression Performance (%) | Lossless |
 |---|---|---:|---:|---:|---:|---|
-| bw_1bit | row_major | 8254 | 1965 | 23.81 | 76.19 | True |
-| bw_1bit | col_major | 8254 | 1647 | 19.95 | 80.05 | True |
-| bw_1bit | zigzag_64 | 8254 | 2568 | 31.11 | 68.89 | True |
-| gray_4bit | row_major | 32886 | 20423 | 62.10 | 37.90 | True |
-| gray_4bit | col_major | 32886 | 19751 | 60.06 | 39.94 | True |
-| gray_4bit | zigzag_64 | 32886 | 24293 | 73.87 | 26.13 | True |
-| palette_8bit | row_major | 66614 | 47123 | 70.74 | 29.26 | True |
-| palette_8bit | col_major | 66614 | 52551 | 78.89 | 21.11 | True |
-| palette_8bit | zigzag_64 | 66614 | 54210 | 81.38 | 18.62 | True |
+| bw_1bit | row_major | 18494 | 3964 | 21.43 | 78.57 | True |
+| bw_1bit | col_major | 18494 | 3509 | 18.97 | 81.03 | True |
+| bw_1bit | zigzag_64 | 18494 | 4929 | 26.65 | 73.35 | True |
+| gray_4bit | row_major | 73846 | 43001 | 58.23 | 41.77 | True |
+| gray_4bit | col_major | 73846 | 41421 | 56.09 | 43.91 | True |
+| gray_4bit | zigzag_64 | 73846 | 48194 | 65.26 | 34.74 | True |
+| palette_8bit | row_major | 148534 | 101933 | 68.63 | 31.37 | True |
+| palette_8bit | col_major | 148534 | 111254 | 74.90 | 25.10 | True |
+| palette_8bit | zigzag_64 | 148534 | 112491 | 75.73 | 24.27 | True |
 
-## Interpretation: Which Format + Which RLE Traversal Works Better?
-
-- `bw_1bit`: `col_major` works best globally.
-- `gray_4bit`: `col_major` works best globally.
-- `palette_8bit`: `row_major` works best globally.
-
-Block-level behavior is format-dependent and does not always match a single universal winner across all BMP types.
-
-## Output Files
+## Output Artifacts
 
 - [results/compression_results.csv](results/compression_results.csv)
 - [results/compression_results.json](results/compression_results.json)

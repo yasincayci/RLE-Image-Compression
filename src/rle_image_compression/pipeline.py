@@ -29,7 +29,7 @@ SCAN_TO_ID = {"row_major": 1, "col_major": 2, "zigzag_64": 3}
 ID_TO_SCAN = {v: k for k, v in SCAN_TO_ID.items()}
 SCAN_ORDER = ["row_major", "col_major", "zigzag_64"]
 BMP_ORDER = ["bw_1bit", "gray_4bit", "palette_8bit"]
-CANVAS_SIZE = 256
+CANVAS_SIZE = 384
 
 
 @dataclass
