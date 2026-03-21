@@ -37,6 +37,11 @@ Thumbs.db
 # User-authored DOCX report artifact
 results/REPORT_DOCX_FINAL.docx
 
-# Generated reports kept local
-results/REPORT.md
+# Generated runtime outputs
+encoded/
+images/bmp/
+images/decompressed/
+images/pixel_values/
+images/skimage_inputs/
+results/
 

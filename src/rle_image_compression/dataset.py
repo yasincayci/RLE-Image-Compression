@@ -5,9 +5,9 @@ from typing import Dict, List, Tuple
 
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
-
-from .image_generator import generate_dataset_sources
+from skimage import data
 
 
 Matrix = List[List[int]]
@@ -22,6 +22,14 @@ class VariantSpec:
 
 def _clamp(value: int, low: int, high: int) -> int:
     return max(low, min(high, value))
+
+
+def _to_uint8(arr: np.ndarray) -> np.ndarray:
+    if arr.dtype == np.uint8:
+        return arr
+    if np.issubdtype(arr.dtype, np.floating):
+        arr = np.clip(arr, 0.0, 1.0) * 255.0
+    return np.clip(arr, 0, 255).astype(np.uint8)
 
 
 def _matrix_from_image(image: Image.Image) -> Matrix:
@@ -57,25 +65,35 @@ def quantize_pal8(image: Matrix) -> Matrix:
     return [[_clamp(value, 0, 255) for value in row] for row in image]
 
 
-def get_palettes() -> Dict[str, List[Tuple[int, int, int]]]:
-    bw_palette = [(0, 0, 0), (255, 255, 255)]
-    gray4_palette = [(i * 17, i * 17, i * 17) for i in range(16)]
-    pal8_palette = [(i, i, i) for i in range(256)]
-    return {
-        "bw_1bit": bw_palette,
-        "gray_4bit": gray4_palette,
-        "palette_8bit": pal8_palette,
-    }
+def _fit_to_canvas_rgb(image: Image.Image, size: int = 512, bg_value: int = 18) -> Image.Image:
+    src_w, src_h = image.size
+    if src_w == 0 or src_h == 0:
+        raise ValueError("Invalid image dimensions")
+
+    scale = min(size / src_w, size / src_h)
+    new_w = max(1, int(round(src_w * scale)))
+    new_h = max(1, int(round(src_h * scale)))
+    resized = image.resize((new_w, new_h), Image.Resampling.BICUBIC)
+
+    canvas = Image.new("RGB", (size, size), color=(bg_value, bg_value, bg_value))
+    offset_x = (size - new_w) // 2
+    offset_y = (size - new_h) // 2
+    canvas.paste(resized, (offset_x, offset_y))
+    return canvas
 
 
-def build_rocket_variants(project_root: Path) -> Tuple[str, Dict[str, VariantSpec]]:
-    generated_sources = generate_dataset_sources(project_root, size=512)
-    source_name = "rocket_orbit_launch_512"
-    _ = generated_sources[source_name]
-    source_path = project_root / "images" / "generated_sources" / f"{source_name}.png"
-    base_image = Image.open(source_path).convert("RGB")
+def load_default_skimage_rocket(
+    output_preview_path: Path,
+    size: int = 512,
+    bg_value: int = 18,
+) -> Tuple[str, Image.Image]:
+    arr = _to_uint8(data.rocket())
+    image = Image.fromarray(arr, mode="RGB")
+    canvas = _fit_to_canvas_rgb(image, size=size, bg_value=bg_value)
 
-    return build_variants_for_image(source_name, base_image)
+    output_preview_path.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(output_preview_path)
+    return "skimage_rocket", canvas
 
 
 def build_variants_for_image(source_name: str, base_image_rgb: Image.Image) -> Tuple[str, Dict[str, VariantSpec]]:
@@ -109,25 +127,11 @@ def load_external_source_with_padding(
     size: int = 512,
     bg_value: int = 18,
 ) -> Tuple[str, Image.Image]:
-    # Keep color for preview output; convert to grayscale only for downstream quantization.
-    image = Image.open(image_path).convert("RGBA")
-    src_w, src_h = image.size
-
-    if src_w == 0 or src_h == 0:
-        raise ValueError(f"Invalid image dimensions for {image_path}")
-
-    scale = min(size / src_w, size / src_h)
-    new_w = max(1, int(round(src_w * scale)))
-    new_h = max(1, int(round(src_h * scale)))
-
-    resized = image.resize((new_w, new_h), Image.Resampling.BICUBIC)
-    canvas = Image.new("RGBA", (size, size), color=(bg_value, bg_value, bg_value, 255))
-    offset_x = (size - new_w) // 2
-    offset_y = (size - new_h) // 2
-    canvas.paste(resized, (offset_x, offset_y))
+    image = Image.open(image_path).convert("RGBA").convert("RGB")
+    canvas = _fit_to_canvas_rgb(image, size=size, bg_value=bg_value)
 
     output_preview_path.parent.mkdir(parents=True, exist_ok=True)
-    canvas.convert("RGB").save(output_preview_path)
+    canvas.save(output_preview_path)
 
-    source_name = f"external_{image_path.stem}_512"
-    return source_name, canvas.convert("RGB")
+    source_name = image_path.stem
+    return source_name, canvas

@@ -10,8 +10,8 @@ from typing import Dict, List, Optional
 
 from .bmp_codec import IndexedBMP, build_bmp_from_header_and_pixels, read_indexed_bmp, write_indexed_bmp
 from .dataset import (
-    build_rocket_variants,
     build_variants_for_image,
+    load_default_skimage_rocket,
     load_external_source_with_padding,
 )
 from .rle_codec import compression_performance, compression_rate, decode_rle, encode_rle
@@ -320,7 +320,6 @@ def _write_docx_source_report_md(results: List[ResultRow], output_path: Path) ->
         "",
         "Core modules:",
         "",
-        "- src/rle_image_compression/image_generator.py",
         "- src/rle_image_compression/dataset.py",
         "- src/rle_image_compression/bmp_codec.py",
         "- src/rle_image_compression/scans.py",
@@ -892,9 +891,14 @@ def _decode_file(encoded_path: Path, output_bmp_path: Path) -> List[List[int]]:
 
 def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) -> List[ResultRow]:
     if input_image_path is None:
-        scene_name, variants = build_rocket_variants(project_root)
+        preview_path = project_root / "images" / "generated_sources" / "skimage_rocket_512.png"
+        source_name, rgb_image = load_default_skimage_rocket(
+            output_preview_path=preview_path,
+            size=512,
+        )
+        scene_name, variants = build_variants_for_image(source_name, rgb_image)
     else:
-        preview_path = project_root / "images" / "generated_sources" / f"external_{input_image_path.stem}_512.png"
+        preview_path = project_root / "images" / "generated_sources" / f"{input_image_path.stem}_512.png"
         source_name, rgb_image = load_external_source_with_padding(
             image_path=input_image_path,
             output_preview_path=preview_path,
@@ -914,11 +918,8 @@ def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) ->
         output_dir.mkdir(parents=True, exist_ok=True)
 
     results: List[ResultRow] = []
-    block_results: List[BlockResultRow] = []
-
     for bmp_type, variant in variants.items():
         pixels = variant.pixels
-        block_results.extend(_compute_block64_analysis(scene_name, bmp_type, pixels))
 
         bmp_path = bmp_dir / f"{scene_name}_{bmp_type}.bmp"
         pixel_path = pixel_dir / f"{scene_name}_{bmp_type}_pixels.txt"
@@ -951,13 +952,6 @@ def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) ->
                 )
             )
 
-    scan_mode_block_comparison = _compute_scan_mode_block_comparison(scene_name, block_results)
-    feature_rows = _compute_block_features(
-        scene_name,
-        variants["palette_8bit"].pixels,
-        scan_mode_block_comparison,
-    )
-
     csv_path = results_dir / "compression_results.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(asdict(results[0]).keys()))
@@ -967,56 +961,5 @@ def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) ->
 
     json_path = results_dir / "compression_results.json"
     json_path.write_text(json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8")
-
-    block_csv_path = results_dir / "block64_results.csv"
-    with block_csv_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(asdict(block_results[0]).keys()))
-        writer.writeheader()
-        for row in block_results:
-            writer.writerow(asdict(row))
-
-    block_json_path = results_dir / "block64_results.json"
-    block_json_path.write_text(json.dumps([asdict(r) for r in block_results], indent=2), encoding="utf-8")
-
-    scan_mode_block_csv = results_dir / "block64_scan_mode_comparison.csv"
-    with scan_mode_block_csv.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(asdict(scan_mode_block_comparison[0]).keys()))
-        writer.writeheader()
-        for row in scan_mode_block_comparison:
-            writer.writerow(asdict(row))
-
-    scan_mode_block_json = results_dir / "block64_scan_mode_comparison.json"
-    scan_mode_block_json.write_text(
-        json.dumps([asdict(r) for r in scan_mode_block_comparison], indent=2), encoding="utf-8"
-    )
-
-    block_features_csv = results_dir / "block64_scan_features.csv"
-    with block_features_csv.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(asdict(feature_rows[0]).keys()))
-        writer.writeheader()
-        for row in feature_rows:
-            writer.writerow(asdict(row))
-
-    block_features_json = results_dir / "block64_scan_features.json"
-    block_features_json.write_text(json.dumps([asdict(r) for r in feature_rows], indent=2), encoding="utf-8")
-
-    report_path = results_dir / "REPORT.md"
-    _write_report_md(results, report_path)
-    report_lines = report_path.read_text(encoding="utf-8").splitlines()
-    _append_block64_summary(
-        report_lines,
-        block_results,
-        scan_mode_block_comparison,
-        "## 8. 64x64 Block-Level Analysis (Why Zigzag May Lose Overall)",
-        "8",
-    )
-    _append_scan_mode_block_summary(
-        report_lines,
-        scan_mode_block_comparison,
-        feature_rows,
-        "## 9. 64x64 Block-Level RLE Scan Analysis",
-        "9",
-    )
-    report_path.write_text("\n".join(report_lines), encoding="utf-8")
 
     return results

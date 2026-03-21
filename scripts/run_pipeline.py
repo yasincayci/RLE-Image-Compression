@@ -20,7 +20,7 @@ if __name__ == "__main__":
         "--input-image",
         type=str,
         default=None,
-        help="Optional external image path. If provided, image is resized/padded to 512x512 and benchmarked.",
+        help="Optional external image path. If omitted, skimage rocket is used by default. Input is resized/padded to 512x512.",
     )
     args = parser.parse_args()
 
