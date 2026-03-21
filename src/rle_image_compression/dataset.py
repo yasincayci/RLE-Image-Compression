@@ -84,7 +84,7 @@ def _fit_to_canvas_rgb(image: Image.Image, size: int = 512, bg_value: int = 18) 
 
 def load_default_skimage_rocket(
     output_preview_path: Path,
-    size: int = 512,
+    size: int = 256,
     bg_value: int = 18,
 ) -> Tuple[str, Image.Image]:
     arr = _to_uint8(data.rocket())
@@ -124,7 +124,7 @@ def build_variants_for_image(source_name: str, base_image_rgb: Image.Image) -> T
 def load_external_source_with_padding(
     image_path: Path,
     output_preview_path: Path,
-    size: int = 512,
+    size: int = 256,
     bg_value: int = 18,
 ) -> Tuple[str, Image.Image]:
     image = Image.open(image_path).convert("RGBA").convert("RGB")

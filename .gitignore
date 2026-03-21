@@ -44,4 +44,6 @@ images/decompressed/
 images/pixel_values/
 images/skimage_inputs/
 results/
+
+# Local-only report tooling and artifacts
 local/

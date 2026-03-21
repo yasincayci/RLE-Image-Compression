@@ -5,6 +5,7 @@ This project benchmarks lossless hybrid RLE compression on indexed BMP images us
 - BMP formats: `bw_1bit`, `gray_4bit`, `palette_8bit`
 - Scan modes (RLE traversal): `row_major`, `col_major`, `zigzag_64`
 - Source: default `skimage_rocket` (or user image with `--input-image`)
+- Preprocess canvas: `256x256` (aspect-ratio preserved + padded, 64x64 zigzag-aligned)
 - Validation: decode output is checked pixel-by-pixel (lossless)
 
 ## Run
@@ -69,7 +70,7 @@ This keeps report creation available on your machine without pushing report tool
 
 Default source image:
 
-![source](images/generated_sources/skimage_rocket_512.png)
+![source](images/generated_sources/skimage_rocket_256.png)
 
 BMP-type preview images (PNG previews so GitHub renders correctly):
 
@@ -88,31 +89,31 @@ BMP-type preview images (PNG previews so GitHub renders correctly):
 
 | BMP Type | Row Major (%) | Col Major (%) | Zigzag 64 (%) | Best Scan |
 |---|---:|---:|---:|---|
-| bw_1bit | 78.61 | 82.62 | 72.10 | col_major |
-| gray_4bit | 44.43 | 46.34 | 35.82 | col_major |
-| palette_8bit | 34.26 | 28.91 | 25.65 | row_major |
+| bw_1bit | 76.19 | 80.05 | 68.89 | col_major |
+| gray_4bit | 37.90 | 39.94 | 26.13 | col_major |
+| palette_8bit | 29.26 | 21.11 | 18.62 | row_major |
 
 ### Block-Winner Counts by BMP Type (64x64)
 
 | BMP Type | Row Wins | Col Wins | Zigzag Wins |
 |---|---:|---:|---:|
-| bw_1bit | 52 | 11 | 1 |
-| gray_4bit | 40 | 24 | 0 |
-| palette_8bit | 55 | 8 | 1 |
+| bw_1bit | 11 | 5 | 0 |
+| gray_4bit | 7 | 9 | 0 |
+| palette_8bit | 13 | 2 | 1 |
 
 ### Full 3x3 Matrix
 
 | BMP Type | Scan Mode | Original (bytes) | Compressed (bytes) | Compression Rate (%) | Compression Performance (%) | Lossless |
 |---|---|---:|---:|---:|---:|---|
-| bw_1bit | row_major | 32830 | 7022 | 21.39 | 78.61 | True |
-| bw_1bit | col_major | 32830 | 5706 | 17.38 | 82.62 | True |
-| bw_1bit | zigzag_64 | 32830 | 9161 | 27.90 | 72.10 | True |
-| gray_4bit | row_major | 131190 | 72904 | 55.57 | 44.43 | True |
-| gray_4bit | col_major | 131190 | 70397 | 53.66 | 46.34 | True |
-| gray_4bit | zigzag_64 | 131190 | 84197 | 64.18 | 35.82 | True |
-| palette_8bit | row_major | 263222 | 173033 | 65.74 | 34.26 | True |
-| palette_8bit | col_major | 263222 | 187130 | 71.09 | 28.91 | True |
-| palette_8bit | zigzag_64 | 263222 | 195702 | 74.35 | 25.65 | True |
+| bw_1bit | row_major | 8254 | 1965 | 23.81 | 76.19 | True |
+| bw_1bit | col_major | 8254 | 1647 | 19.95 | 80.05 | True |
+| bw_1bit | zigzag_64 | 8254 | 2568 | 31.11 | 68.89 | True |
+| gray_4bit | row_major | 32886 | 20423 | 62.10 | 37.90 | True |
+| gray_4bit | col_major | 32886 | 19751 | 60.06 | 39.94 | True |
+| gray_4bit | zigzag_64 | 32886 | 24293 | 73.87 | 26.13 | True |
+| palette_8bit | row_major | 66614 | 47123 | 70.74 | 29.26 | True |
+| palette_8bit | col_major | 66614 | 52551 | 78.89 | 21.11 | True |
+| palette_8bit | zigzag_64 | 66614 | 54210 | 81.38 | 18.62 | True |
 
 ## Interpretation: Which Format + Which RLE Traversal Works Better?
 

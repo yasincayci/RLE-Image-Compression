@@ -29,6 +29,7 @@ SCAN_TO_ID = {"row_major": 1, "col_major": 2, "zigzag_64": 3}
 ID_TO_SCAN = {v: k for k, v in SCAN_TO_ID.items()}
 SCAN_ORDER = ["row_major", "col_major", "zigzag_64"]
 BMP_ORDER = ["bw_1bit", "gray_4bit", "palette_8bit"]
+CANVAS_SIZE = 256
 
 
 @dataclass
@@ -458,15 +459,15 @@ def _try_generate_local_report(
 
 def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) -> List[ResultRow]:
     if input_image_path is None:
-        preview_path = project_root / "images" / "generated_sources" / "skimage_rocket_512.png"
-        source_name, rgb_image = load_default_skimage_rocket(output_preview_path=preview_path, size=512)
+        preview_path = project_root / "images" / "generated_sources" / f"skimage_rocket_{CANVAS_SIZE}.png"
+        source_name, rgb_image = load_default_skimage_rocket(output_preview_path=preview_path, size=CANVAS_SIZE)
         scene_name, variants = build_variants_for_image(source_name, rgb_image)
     else:
-        preview_path = project_root / "images" / "generated_sources" / f"{input_image_path.stem}_512.png"
+        preview_path = project_root / "images" / "generated_sources" / f"{input_image_path.stem}_{CANVAS_SIZE}.png"
         source_name, rgb_image = load_external_source_with_padding(
             image_path=input_image_path,
             output_preview_path=preview_path,
-            size=512,
+            size=CANVAS_SIZE,
         )
         scene_name, variants = build_variants_for_image(source_name, rgb_image)
 
