@@ -1,66 +1,135 @@
 # RLE Image Compression (BMP + Scan Modes)
 
-Bu proje, tek bir 512x512 kaynak goruntu uzerinde 3 BMP turu ve 3 tarama modu ile kayipsiz RLE karsilastirmasi yapar.
+This project benchmarks lossless hybrid RLE compression on indexed BMP images using three scan modes.
 
-- BMP turleri: `bw_1bit`, `gray_4bit`, `palette_8bit`
-- Tarama modlari: `row_major`, `col_major`, `zigzag_64`
-- Kayipsizlik: Her kombinasyonda decode sonrasi piksel dogrulamasi yapilir.
+- BMP formats: `bw_1bit`, `gray_4bit`, `palette_8bit`
+- Scan modes (RLE traversal): `row_major`, `col_major`, `zigzag_64`
+- Source: default `skimage_rocket` (or user image with `--input-image`)
+- Validation: decode output is checked pixel-by-pixel (lossless)
 
-Varsayilan kaynak: `skimage` kutuphanesindeki roket goruntusu (`skimage_rocket`).
-Opsiyonel olarak `--input-image` ile kendi goruntunuzu verebilirsiniz.
-
-## Adim Adim Repo Yapisi
-
-1. Calisan kod
-- [src/rle_image_compression/bmp_codec.py](src/rle_image_compression/bmp_codec.py): indexed BMP yazma/okuma ve header tabanli yeniden olusturma
-- [src/rle_image_compression/scans.py](src/rle_image_compression/scans.py): row/column/zigzag flatten-unflatten
-- [src/rle_image_compression/rle_codec.py](src/rle_image_compression/rle_codec.py): hibrit RLE encode/decode
-- [src/rle_image_compression/dataset.py](src/rle_image_compression/dataset.py): kaynak goruntuden 1/4/8-bit varyantlarin hazirlanmasi
-- [src/rle_image_compression/pipeline.py](src/rle_image_compression/pipeline.py): tum benchmark akisi
-
-2. Calistirma scripti
-- [scripts/run_pipeline.py](scripts/run_pipeline.py): benchmarki tek komutla calistirir
-
-3. Uretilen klasorler
-- [images/generated_sources](images/generated_sources): 512x512 kaynak preview
-- [images/bmp](images/bmp): BMP varyantlari
-- [images/decompressed](images/decompressed): decode edilmis BMP ciktilari
-- [images/pixel_values](images/pixel_values): piksel matris txt dosyalari
-- [encoded](encoded): custom `.rle` dosyalari
-- [results](results): sonuc tablolari
-
-## Calistirma
+## Run
 
 ```bash
 pip install -r requirements.txt
-python scripts/run_pipeline.py
+python run_pipeline.py
 ```
 
-Disaridan goruntu vermek icin:
+Optional external input:
 
 ```bash
-python scripts/run_pipeline.py --input-image path/to/image.png
+python run_pipeline.py --input-image path/to/image.png
 ```
 
-Not: Disaridan verilen goruntu oran korunarak 512x512 alana sigdirilir ve kalan alan pad edilir.
+## Project Layout
 
-## Goruntu Donusum Ornekleri
+Requested pipe-style structure:
 
-Kaynak goruntu (varsayilan):
+```text
+|
+|-- run_pipeline.py
+|
+|-- src
+|   |
+|   |----- rle_image_compression
+|          |--------- dataset.py
+|          |--------- bmp_codec.py
+|          |--------- scans.py
+|          |--------- rle_codec.py
+|          |--------- pipeline.py
+|
+|-- images
+|   |
+|   |----- generated_sources
+|   |----- previews
+|   |----- bmp
+|   |----- decompressed
+|   |----- pixel_values
+|
+|-- results
+|   |
+|   |----- compression_results.csv
+|   |----- compression_results.json
+|   |----- block64_results.csv
+|   |----- block64_bmp_scan_comparison.csv
+|   |----- bmp_scan_summary.csv
+|   |----- results_tables.md
+```
 
-![skimage_rocket](images/generated_sources/skimage_rocket_512.png)
+## Report Strategy (Not Pushed)
 
-BMP turlerine donusum:
+Report generation logic is moved to a local-only area and excluded from git:
 
-![bw_1bit](images/bmp/skimage_rocket_bw_1bit.bmp)
-![gray_4bit](images/bmp/skimage_rocket_gray_4bit.bmp)
-![palette_8bit](images/bmp/skimage_rocket_palette_8bit.bmp)
+- Local report builder code: `local/reporting/report_builder.py`
+- Local report output: `local/reports/REPORT.md`
+- Git behavior: `local/` is ignored in [\.gitignore](.gitignore)
 
-## Overall Sonuc
+This keeps report creation available on your machine without pushing report tooling/artifacts.
 
-Son calistirmada olusan tablo:
+## Source and BMP Visuals
+
+Default source image:
+
+![source](images/generated_sources/skimage_rocket_512.png)
+
+BMP-type preview images (PNG previews so GitHub renders correctly):
+
+### bw_1bit
+![bw_1bit](images/previews/skimage_rocket_bw_1bit.png)
+
+### gray_4bit
+![gray_4bit](images/previews/skimage_rocket_gray_4bit.png)
+
+### palette_8bit
+![palette_8bit](images/previews/skimage_rocket_palette_8bit.png)
+
+## Main Results (Markdown Tables)
+
+### Global Performance by BMP Type
+
+| BMP Type | Row Major (%) | Col Major (%) | Zigzag 64 (%) | Best Scan |
+|---|---:|---:|---:|---|
+| bw_1bit | 78.57 | 82.62 | 72.10 | col_major |
+| gray_4bit | 43.66 | 46.34 | 35.82 | col_major |
+| palette_8bit | 34.08 | 28.91 | 25.65 | row_major |
+
+### Block-Winner Counts by BMP Type (64x64)
+
+| BMP Type | Row Wins | Col Wins | Zigzag Wins |
+|---|---:|---:|---:|
+| bw_1bit | 52 | 11 | 1 |
+| gray_4bit | 38 | 22 | 4 |
+| palette_8bit | 49 | 11 | 4 |
+
+### Full 3x3 Matrix
+
+| BMP Type | Scan Mode | Original (bytes) | Compressed (bytes) | Compression Rate (%) | Compression Performance (%) | Lossless |
+|---|---|---:|---:|---:|---:|---|
+| bw_1bit | row_major | 32830 | 7034 | 21.43 | 78.57 | True |
+| bw_1bit | col_major | 32830 | 5706 | 17.38 | 82.62 | True |
+| bw_1bit | zigzag_64 | 32830 | 9161 | 27.90 | 72.10 | True |
+| gray_4bit | row_major | 131190 | 73906 | 56.34 | 43.66 | True |
+| gray_4bit | col_major | 131190 | 70397 | 53.66 | 46.34 | True |
+| gray_4bit | zigzag_64 | 131190 | 84197 | 64.18 | 35.82 | True |
+| palette_8bit | row_major | 263222 | 173506 | 65.92 | 34.08 | True |
+| palette_8bit | col_major | 263222 | 187130 | 71.09 | 28.91 | True |
+| palette_8bit | zigzag_64 | 263222 | 195702 | 74.35 | 25.65 | True |
+
+## Interpretation: Which Format + Which RLE Traversal Works Better?
+
+- `bw_1bit`: `col_major` works best globally.
+- `gray_4bit`: `col_major` works best globally.
+- `palette_8bit`: `row_major` works best globally.
+
+Block-level behavior is format-dependent and does not always match a single universal winner across all BMP types.
+
+## Output Files
 
 - [results/compression_results.csv](results/compression_results.csv)
 - [results/compression_results.json](results/compression_results.json)
-
-Bu tabloda her BMP turu icin 3 scan modu yer alir ve en iyi sikistirma performansi dogrudan karsilastirilir.
+- [results/block64_results.csv](results/block64_results.csv)
+- [results/block64_results.json](results/block64_results.json)
+- [results/block64_bmp_scan_comparison.csv](results/block64_bmp_scan_comparison.csv)
+- [results/block64_bmp_scan_comparison.json](results/block64_bmp_scan_comparison.json)
+- [results/bmp_scan_summary.csv](results/bmp_scan_summary.csv)
+- [results/bmp_scan_summary.json](results/bmp_scan_summary.json)
+- [results/results_tables.md](results/results_tables.md)

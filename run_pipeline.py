@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_DIR = PROJECT_ROOT / "src"
 
 if str(SRC_DIR) not in sys.path:
@@ -28,6 +28,6 @@ if __name__ == "__main__":
     if input_image is not None and not input_image.exists():
         raise FileNotFoundError(f"Input image not found: {input_image}")
 
-    results = run_pipeline(PROJECT_ROOT, input_image_path=input_image)
-    all_lossless = all(r.lossless for r in results)
-    print(f"Generated {len(results)} experiment rows. Lossless: {all_lossless}")
+    rows = run_pipeline(PROJECT_ROOT, input_image_path=input_image)
+    all_lossless = all(r.lossless for r in rows)
+    print(f"Generated {len(rows)} experiment rows. Lossless: {all_lossless}")
