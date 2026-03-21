@@ -40,12 +40,7 @@ results/REPORT_DOCX_FINAL.docx
 # Generated runtime outputs
 encoded/
 images/bmp/
-images/previews/
 images/decompressed/
 images/pixel_values/
 images/skimage_inputs/
 results/
-
-# Local-only reporting (code + artifacts)
-local/
-
