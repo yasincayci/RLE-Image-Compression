@@ -1,0 +1,10 @@
+scene,bmp_type,scan_mode,original_size_bytes,compressed_size_bytes,compression_rate_percent,compression_performance_percent,lossless
+external_camera_512,bw_1bit,row_major,32830,40654,123.83,-23.83,True
+external_camera_512,bw_1bit,col_major,32830,35793,109.03,-9.03,True
+external_camera_512,bw_1bit,zigzag_64,32830,46388,141.3,-41.3,True
+external_camera_512,gray_4bit,row_major,131190,169948,129.54,-29.54,True
+external_camera_512,gray_4bit,col_major,131190,175814,134.01,-34.01,True
+external_camera_512,gray_4bit,zigzag_64,131190,186312,142.02,-42.02,True
+external_camera_512,palette_8bit,row_major,263222,288699,109.68,-9.68,True
+external_camera_512,palette_8bit,col_major,263222,291015,110.56,-10.56,True
+external_camera_512,palette_8bit,zigzag_64,263222,289351,109.93,-9.93,True

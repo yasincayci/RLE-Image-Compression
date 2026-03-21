@@ -1,0 +1,92 @@
+[
+  {
+    "scene": "external_camera_512",
+    "bmp_type": "bw_1bit",
+    "scan_mode": "row_major",
+    "original_size_bytes": 32830,
+    "compressed_size_bytes": 40654,
+    "compression_rate_percent": 123.83,
+    "compression_performance_percent": -23.83,
+    "lossless": true
+  },
+  {
+    "scene": "external_camera_512",
+    "bmp_type": "bw_1bit",
+    "scan_mode": "col_major",
+    "original_size_bytes": 32830,
+    "compressed_size_bytes": 35793,
+    "compression_rate_percent": 109.03,
+    "compression_performance_percent": -9.03,
+    "lossless": true
+  },
+  {
+    "scene": "external_camera_512",
+    "bmp_type": "bw_1bit",
+    "scan_mode": "zigzag_64",
+    "original_size_bytes": 32830,
+    "compressed_size_bytes": 46388,
+    "compression_rate_percent": 141.3,
+    "compression_performance_percent": -41.3,
+    "lossless": true
+  },
+  {
+    "scene": "external_camera_512",
+    "bmp_type": "gray_4bit",
+    "scan_mode": "row_major",
+    "original_size_bytes": 131190,
+    "compressed_size_bytes": 169948,
+    "compression_rate_percent": 129.54,
+    "compression_performance_percent": -29.54,
+    "lossless": true
+  },
+  {
+    "scene": "external_camera_512",
+    "bmp_type": "gray_4bit",
+    "scan_mode": "col_major",
+    "original_size_bytes": 131190,
+    "compressed_size_bytes": 175814,
+    "compression_rate_percent": 134.01,
+    "compression_performance_percent": -34.01,
+    "lossless": true
+  },
+  {
+    "scene": "external_camera_512",
+    "bmp_type": "gray_4bit",
+    "scan_mode": "zigzag_64",
+    "original_size_bytes": 131190,
+    "compressed_size_bytes": 186312,
+    "compression_rate_percent": 142.02,
+    "compression_performance_percent": -42.02,
+    "lossless": true
+  },
+  {
+    "scene": "external_camera_512",
+    "bmp_type": "palette_8bit",
+    "scan_mode": "row_major",
+    "original_size_bytes": 263222,
+    "compressed_size_bytes": 288699,
+    "compression_rate_percent": 109.68,
+    "compression_performance_percent": -9.68,
+    "lossless": true
+  },
+  {
+    "scene": "external_camera_512",
+    "bmp_type": "palette_8bit",
+    "scan_mode": "col_major",
+    "original_size_bytes": 263222,
+    "compressed_size_bytes": 291015,
+    "compression_rate_percent": 110.56,
+    "compression_performance_percent": -10.56,
+    "lossless": true
+  },
+  {
+    "scene": "external_camera_512",
+    "bmp_type": "palette_8bit",
+    "scan_mode": "zigzag_64",
+    "original_size_bytes": 263222,
+    "compressed_size_bytes": 289351,
+    "compression_rate_percent": 109.93,
+    "compression_performance_percent": -9.93,
+    "lossless": true
+  }
+]
