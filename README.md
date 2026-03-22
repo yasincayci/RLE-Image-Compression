@@ -23,7 +23,7 @@ Run with external input:
 python run_pipeline.py --input-image path/to/image.png
 ```
 
-## Professional Project Structure
+## Project Structure
 
 ```text
 RLE-Image-Compression/
@@ -66,7 +66,7 @@ BMP previews:
 ### palette_8bit
 ![palette_8bit](images/previews/skimage_rocket_palette_8bit.png)
 
-## Current Benchmark Results
+## Benchmark Results
 
 ### Global Performance by BMP Type
 
@@ -97,17 +97,3 @@ BMP previews:
 | palette_8bit | row_major | 148534 | 101933 | 68.63 | 31.37 | True |
 | palette_8bit | col_major | 148534 | 111254 | 74.90 | 25.10 | True |
 | palette_8bit | zigzag_64 | 148534 | 112491 | 75.73 | 24.27 | True |
-
-## Output Artifacts
-
-- [results/compression_results.csv](results/compression_results.csv)
-- [results/compression_results.json](results/compression_results.json)
-- [results/block64_results.csv](results/block64_results.csv)
-- [results/block64_results.json](results/block64_results.json)
-- [results/block64_bmp_scan_comparison.csv](results/block64_bmp_scan_comparison.csv)
-- [results/block64_bmp_scan_comparison.json](results/block64_bmp_scan_comparison.json)
-- [results/block64_value_features.csv](results/block64_value_features.csv)
-- [results/block64_value_features.json](results/block64_value_features.json)
-- [results/bmp_scan_summary.csv](results/bmp_scan_summary.csv)
-- [results/bmp_scan_summary.json](results/bmp_scan_summary.json)
-- [results/results_tables.md](results/results_tables.md)
