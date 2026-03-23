@@ -78,11 +78,11 @@ BMP previews:
 
 ### Block Winner Counts (64x64)
 
-| BMP Type | Row Wins | Col Wins | Zigzag Wins |
-|---|---:|---:|---:|
-| bw_1bit | 4 | 7 | 0 |
-| gray_4bit | 7 | 17 | 0 |
-| palette_8bit | 17 | 6 | 1 |
+| BMP Type | Row Wins | Col Wins | Zigzag Wins | Draws |
+|---|---:|---:|---:|---:|  
+| bw_1bit | 4 | 7 | 0 | 25
+| gray_4bit | 7 | 17 | 0 | 12
+| palette_8bit | 17 | 6 | 1 | 12
 
 ### Full 3x3 Matrix
 
