@@ -80,9 +80,9 @@ BMP previews:
 
 | BMP Type | Row Wins | Col Wins | Zigzag Wins |
 |---|---:|---:|---:|
-| bw_1bit | 29 | 7 | 0 |
-| gray_4bit | 19 | 17 | 0 |
-| palette_8bit | 29 | 6 | 1 |
+| bw_1bit | 4 | 7 | 0 |
+| gray_4bit | 7 | 17 | 0 |
+| palette_8bit | 17 | 6 | 1 |
 
 ### Full 3x3 Matrix
 
