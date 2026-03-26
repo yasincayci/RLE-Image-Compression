@@ -54,7 +54,7 @@ RLE-Image-Compression/
 
 Default source image:
 
-![source](images/generated_sources/skimage_rocket_640x448.png)
+![source](images/generated_sources/skimage_rocket_original.png)
 
 BMP previews:
 
