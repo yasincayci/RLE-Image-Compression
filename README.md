@@ -79,7 +79,6 @@ BMP previews:
 
 ### Block Winner Counts (64x64)
 
-<<<<<<< HEAD
 Current default source is padded to 640x448, so block grid is 10x7 = 70 blocks.
 Row/Col/Zigzag/Tie counts therefore sum to 70 for each BMP type.
 
@@ -88,19 +87,11 @@ Row/Col/Zigzag/Tie counts therefore sum to 70 for each BMP type.
 | bw_1bit | 8 | 18 | 2 | 42 |
 | gray_4bit | 30 | 39 | 0 | 1 |
 | palette_8bit | 55 | 13 | 2 | 0 |
-=======
-| BMP Type | Row Wins | Col Wins | Zigzag Wins | Draws |
-|---|---:|---:|---:|---:|  
-| bw_1bit | 4 | 7 | 0 | 25
-| gray_4bit | 7 | 17 | 0 | 12
-| palette_8bit | 17 | 6 | 1 | 12
->>>>>>> 1f9a9e650b27f50120629d99475cf91131558112
 
 ### Full 3x3 Matrix
 
 | BMP Type | Scan Mode | Original (bytes) | Compressed (bytes) | Compression Rate (%) | Compression Performance (%) | Lossless |
 |---|---|---:|---:|---:|---:|---|
-<<<<<<< HEAD
 | bw_1bit | row_major | 35902 | 11548 | 32.17 | 67.83 | True |
 | bw_1bit | col_major | 35902 | 8981 | 25.02 | 74.98 | True |
 | bw_1bit | zigzag_64 | 35902 | 14359 | 39.99 | 60.01 | True |
@@ -142,14 +133,3 @@ Generated under:
 - [results/bmp_scan_summary.csv](results/bmp_scan_summary.csv)
 - [results/bmp_scan_summary.json](results/bmp_scan_summary.json)
 - [results/results_tables.md](results/results_tables.md)
-=======
-| bw_1bit | row_major | 18494 | 3964 | 21.43 | 78.57 | True |
-| bw_1bit | col_major | 18494 | 3509 | 18.97 | 81.03 | True |
-| bw_1bit | zigzag_64 | 18494 | 4929 | 26.65 | 73.35 | True |
-| gray_4bit | row_major | 73846 | 43001 | 58.23 | 41.77 | True |
-| gray_4bit | col_major | 73846 | 41421 | 56.09 | 43.91 | True |
-| gray_4bit | zigzag_64 | 73846 | 48194 | 65.26 | 34.74 | True |
-| palette_8bit | row_major | 148534 | 101933 | 68.63 | 31.37 | True |
-| palette_8bit | col_major | 148534 | 111254 | 74.90 | 25.10 | True |
-| palette_8bit | zigzag_64 | 148534 | 112491 | 75.73 | 24.27 | True |
->>>>>>> 1f9a9e650b27f50120629d99475cf91131558112
