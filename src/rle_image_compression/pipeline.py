@@ -11,8 +11,22 @@ from typing import Dict, List, Optional, Tuple
 
 from PIL import Image
 
+try:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import TwoSlopeNorm
+except Exception:  # pragma: no cover
+    plt = None
+
 from .bmp_codec import IndexedBMP, build_bmp_from_header_and_pixels, read_indexed_bmp, write_indexed_bmp
-from .dataset import build_variants_for_image, load_default_skimage_rocket, load_external_source_with_padding
+from .dataset import (
+    build_variants_for_image,
+    load_default_skimage_rocket,
+    load_external_source_with_padding,
+    pad_rgb_to_block_grid,
+)
 from .rle_codec import compression_performance, compression_rate, decode_rle, encode_rle
 from .scans import (
     flatten_block_zigzag,
@@ -29,7 +43,9 @@ SCAN_TO_ID = {"row_major": 1, "col_major": 2, "zigzag_64": 3}
 ID_TO_SCAN = {v: k for k, v in SCAN_TO_ID.items()}
 SCAN_ORDER = ["row_major", "col_major", "zigzag_64"]
 BMP_ORDER = ["bw_1bit", "gray_4bit", "palette_8bit"]
-CANVAS_SIZE = 384
+BLOCK_SIZE = 64
+PAD_BG_VALUE = 18
+META_FORMAT = "<4sBBBBHHHHII"
 
 
 @dataclass
@@ -68,6 +84,8 @@ class BmpBlockComparisonRow:
     col_major_perf_percent: float
     zigzag_64_perf_percent: float
     winner_scan_mode: str
+    is_tie: bool
+    tie_scan_modes: str
     winner_gap_percent_point: float
 
 
@@ -82,6 +100,7 @@ class BmpTypeSummaryRow:
     row_major_block_wins: int
     col_major_block_wins: int
     zigzag_64_block_wins: int
+    tie_block_count: int
 
 
 @dataclass
@@ -100,14 +119,39 @@ class BlockValueFeatureRow:
 SCAN_FLATTEN = {
     "row_major": flatten_row_major,
     "col_major": flatten_col_major,
-    "zigzag_64": lambda pixels: flatten_block_zigzag(pixels, block_size=64),
+    "zigzag_64": lambda pixels: flatten_block_zigzag(pixels, block_size=BLOCK_SIZE),
 }
 
 SCAN_UNFLATTEN = {
     "row_major": unflatten_row_major,
     "col_major": unflatten_col_major,
-    "zigzag_64": lambda values, w, h: unflatten_block_zigzag(values, w, h, block_size=64),
+    "zigzag_64": lambda values, w, h: unflatten_block_zigzag(values, w, h, block_size=BLOCK_SIZE),
 }
+
+
+def _crop_top_left(pixels: List[List[int]], width: int, height: int) -> List[List[int]]:
+    return [row[:width] for row in pixels[:height]]
+
+
+def _pad_index_pixels(pixels: List[List[int]], padded_width: int, padded_height: int, pad_value: int) -> List[List[int]]:
+    height = len(pixels)
+    width = len(pixels[0]) if height else 0
+    out = [[pad_value for _ in range(padded_width)] for _ in range(padded_height)]
+    for y in range(height):
+        out[y][:width] = pixels[y]
+    return out
+
+
+def _closest_palette_index(palette: List[Tuple[int, int, int]], target_rgb: Tuple[int, int, int]) -> int:
+    tr, tg, tb = target_rgb
+    best_idx = 0
+    best_dist = None
+    for idx, (r, g, b) in enumerate(palette):
+        dist = (r - tr) * (r - tr) + (g - tg) * (g - tg) + (b - tb) * (b - tb)
+        if best_dist is None or dist < best_dist:
+            best_dist = dist
+            best_idx = idx
+    return best_idx
 
 
 def _write_pixel_values(path: Path, pixels: List[List[int]]) -> None:
@@ -116,13 +160,19 @@ def _write_pixel_values(path: Path, pixels: List[List[int]]) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def _encode_file(src_bmp: IndexedBMP, scan_mode: str, output_path: Path) -> int:
+def _encode_file(
+    src_bmp: IndexedBMP,
+    scan_mode: str,
+    output_path: Path,
+    original_width: int,
+    original_height: int,
+) -> int:
     values = SCAN_FLATTEN[scan_mode](src_bmp.pixels)
     payload = encode_rle(values)
 
     header_blob = src_bmp.header_bytes
     meta = struct.pack(
-        "<4sBBBBHHII",
+        META_FORMAT,
         MAGIC,
         VERSION,
         SCAN_TO_ID[scan_mode],
@@ -130,6 +180,8 @@ def _encode_file(src_bmp: IndexedBMP, scan_mode: str, output_path: Path) -> int:
         0,
         src_bmp.width,
         src_bmp.height,
+        original_width,
+        original_height,
         len(header_blob),
         len(payload),
     )
@@ -139,11 +191,23 @@ def _encode_file(src_bmp: IndexedBMP, scan_mode: str, output_path: Path) -> int:
     return len(meta) + len(header_blob) + len(payload)
 
 
-def _decode_file(encoded_path: Path, output_bmp_path: Path) -> List[List[int]]:
+def _decode_file(encoded_path: Path, output_bmp_path: Optional[Path] = None) -> List[List[int]]:
     data = encoded_path.read_bytes()
-    meta_size = struct.calcsize("<4sBBBBHHII")
-    magic, version, scan_id, bpp, _reserved, width, height, header_len, payload_len = struct.unpack(
-        "<4sBBBBHHII", data[:meta_size]
+    meta_size = struct.calcsize(META_FORMAT)
+    (
+        magic,
+        version,
+        scan_id,
+        bpp,
+        _reserved,
+        width,
+        height,
+        original_width,
+        original_height,
+        header_len,
+        payload_len,
+    ) = struct.unpack(
+        META_FORMAT, data[:meta_size]
     )
 
     if magic != MAGIC or version != VERSION:
@@ -154,11 +218,13 @@ def _decode_file(encoded_path: Path, output_bmp_path: Path) -> List[List[int]]:
 
     values = decode_rle(payload, expected_count=width * height)
     scan_mode = ID_TO_SCAN[scan_id]
-    pixels = SCAN_UNFLATTEN[scan_mode](values, width, height)
+    padded_pixels = SCAN_UNFLATTEN[scan_mode](values, width, height)
+    pixels = _crop_top_left(padded_pixels, original_width, original_height)
 
-    bmp_bytes = build_bmp_from_header_and_pixels(header_blob, pixels, bpp)
-    output_bmp_path.parent.mkdir(parents=True, exist_ok=True)
-    output_bmp_path.write_bytes(bmp_bytes)
+    if output_bmp_path is not None:
+        bmp_bytes = build_bmp_from_header_and_pixels(header_blob, pixels, bpp)
+        output_bmp_path.parent.mkdir(parents=True, exist_ok=True)
+        output_bmp_path.write_bytes(bmp_bytes)
     return pixels
 
 
@@ -217,9 +283,15 @@ def _compute_bmp_block_comparison(
             "col_major": col_perf,
             "zigzag_64": zig_perf,
         }
-        winner = max(perf_map, key=perf_map.get)
+        max_perf = max(perf_map.values())
+        winners = [mode for mode, perf in perf_map.items() if perf == max_perf]
+        is_tie = len(winners) > 1
+        winner = "tie" if is_tie else winners[0]
+        tie_scan_modes = "|".join(winners) if is_tie else ""
         ordered = sorted(perf_map.values(), reverse=True)
         gap = (ordered[0] - ordered[1]) if len(ordered) > 1 else 0.0
+        if is_tie:
+            gap = 0.0
 
         rows.append(
             BmpBlockComparisonRow(
@@ -232,6 +304,8 @@ def _compute_bmp_block_comparison(
                 col_major_perf_percent=round(col_perf, 2),
                 zigzag_64_perf_percent=round(zig_perf, 2),
                 winner_scan_mode=winner,
+                is_tie=is_tie,
+                tie_scan_modes=tie_scan_modes,
                 winner_gap_percent_point=round(gap, 2),
             )
         )
@@ -251,9 +325,13 @@ def _compute_bmp_type_summary(
         best_global = max(perf_map, key=perf_map.get)
 
         wins = {"row_major": 0, "col_major": 0, "zigzag_64": 0}
+        tie_count = 0
         for row in bmp_block_cmp:
             if row.bmp_type == bmp_type:
-                wins[row.winner_scan_mode] += 1
+                if row.is_tie:
+                    tie_count += 1
+                else:
+                    wins[row.winner_scan_mode] += 1
 
         out.append(
             BmpTypeSummaryRow(
@@ -266,6 +344,7 @@ def _compute_bmp_type_summary(
                 row_major_block_wins=wins["row_major"],
                 col_major_block_wins=wins["col_major"],
                 zigzag_64_block_wins=wins["zigzag_64"],
+                tie_block_count=tie_count,
             )
         )
 
@@ -346,6 +425,81 @@ def _save_indexed_preview_png(path: Path, pixels: List[List[int]], palette: List
     image.save(path)
 
 
+def _write_block_visualizations(
+    scene_name: str,
+    bmp_type: str,
+    bmp_block_rows: List[BmpBlockComparisonRow],
+    output_dir: Path,
+) -> None:
+    if plt is None:
+        return
+    rows = [r for r in bmp_block_rows if r.bmp_type == bmp_type]
+    if not rows:
+        return
+
+    max_block_row = max(r.block_row for r in rows)
+    max_block_col = max(r.block_col for r in rows)
+    heatmap = [[float("nan") for _ in range(max_block_col + 1)] for _ in range(max_block_row + 1)]
+    values: List[float] = []
+
+    for row in rows:
+        best_perf = max(row.row_major_perf_percent, row.col_major_perf_percent, row.zigzag_64_perf_percent)
+        heatmap[row.block_row][row.block_col] = best_perf
+        values.append(best_perf)
+
+    if not values:
+        return
+
+    vmin = min(values)
+    vmax = max(values)
+    if vmin == vmax:
+        vmin -= 1.0
+        vmax += 1.0
+    if vmin >= 0:
+        vmin = 0.0
+    if vmax <= 0:
+        vmax = 0.0
+
+    fig, ax = plt.subplots(figsize=(7, 7))
+    if vmin < 0 < vmax:
+        image = ax.imshow(heatmap, cmap="RdYlGn", norm=TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax))
+    else:
+        image = ax.imshow(heatmap, cmap="RdYlGn", vmin=vmin, vmax=vmax)
+    ax.set_title(f"{bmp_type} - Block Best Compression Performance Heatmap")
+    ax.set_xlabel("Block Column")
+    ax.set_ylabel("Block Row")
+    ax.set_xticks(range(max_block_col + 1))
+    ax.set_yticks(range(max_block_row + 1))
+
+    winner_short = {
+        "row_major": "R",
+        "col_major": "C",
+        "zigzag_64": "Z",
+        "tie": "T",
+    }
+    for row in rows:
+        winner = winner_short.get(row.winner_scan_mode, "")
+        best_perf = max(row.row_major_perf_percent, row.col_major_perf_percent, row.zigzag_64_perf_percent)
+        ax.text(
+            row.block_col,
+            row.block_row,
+            f"{best_perf:.1f}\n{winner}",
+            ha="center",
+            va="center",
+            fontsize=7,
+            color="black",
+        )
+
+    cbar = fig.colorbar(image, ax=ax)
+    cbar.set_label("Compression Performance (%)")
+    fig.tight_layout()
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    heatmap_path = output_dir / f"{scene_name}_{bmp_type}_block_perf_heatmap.png"
+    fig.savefig(heatmap_path, dpi=180)
+    plt.close(fig)
+
+
 def _write_rows_csv_json(rows: List[object], csv_path: Path, json_path: Path) -> None:
     if not rows:
         return
@@ -387,14 +541,14 @@ def _write_markdown_tables(
             "",
             "## Block-Winner Counts by BMP Type",
             "",
-            "| BMP Type | Row Wins | Col Wins | Zigzag Wins |",
-            "|---|---:|---:|---:|",
+            "| BMP Type | Row Wins | Col Wins | Zigzag Wins | Tie Blocks |",
+            "|---|---:|---:|---:|---:|",
         ]
     )
 
     for row in bmp_summary_rows:
         lines.append(
-            f"| {row.bmp_type} | {row.row_major_block_wins} | {row.col_major_block_wins} | {row.zigzag_64_block_wins} |"
+            f"| {row.bmp_type} | {row.row_major_block_wins} | {row.col_major_block_wins} | {row.zigzag_64_block_wins} | {row.tie_block_count} |"
         )
 
     lines.extend(
@@ -459,59 +613,83 @@ def _try_generate_local_report(
 
 def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) -> List[ResultRow]:
     if input_image_path is None:
-        preview_path = project_root / "images" / "generated_sources" / f"skimage_rocket_{CANVAS_SIZE}.png"
-        source_name, rgb_image = load_default_skimage_rocket(output_preview_path=preview_path, size=CANVAS_SIZE)
-        scene_name, variants = build_variants_for_image(source_name, rgb_image)
+        raw_preview_path = project_root / "images" / "generated_sources" / "skimage_rocket_original.png"
+        source_name, rgb_image = load_default_skimage_rocket(output_preview_path=raw_preview_path)
     else:
-        preview_path = project_root / "images" / "generated_sources" / f"{input_image_path.stem}_{CANVAS_SIZE}.png"
+        raw_preview_path = project_root / "images" / "generated_sources" / f"{input_image_path.stem}_original.png"
         source_name, rgb_image = load_external_source_with_padding(
             image_path=input_image_path,
-            output_preview_path=preview_path,
-            size=CANVAS_SIZE,
+            output_preview_path=raw_preview_path,
         )
-        scene_name, variants = build_variants_for_image(source_name, rgb_image)
+
+    original_w, original_h = rgb_image.size
+    padded_image, (padded_width, padded_height) = pad_rgb_to_block_grid(
+        rgb_image,
+        block_size=BLOCK_SIZE,
+        bg_value=PAD_BG_VALUE,
+    )
+    padded_preview_path = project_root / "images" / "generated_sources" / f"{source_name}_{padded_width}x{padded_height}.png"
+    padded_preview_path.parent.mkdir(parents=True, exist_ok=True)
+    padded_image.save(padded_preview_path)
+
+    scene_name, original_variants = build_variants_for_image(source_name, rgb_image)
 
     bmp_dir = project_root / "images" / "bmp"
     preview_dir = project_root / "images" / "previews"
     pixel_dir = project_root / "images" / "pixel_values"
     encoded_dir = project_root / "encoded"
     decompressed_dir = project_root / "images" / "decompressed"
+    analysis_dir = project_root / "images" / "block_analysis"
     results_dir = project_root / "results"
 
-    for output_dir in (bmp_dir, preview_dir, pixel_dir, encoded_dir, decompressed_dir, results_dir):
+    for output_dir in (bmp_dir, preview_dir, pixel_dir, encoded_dir, decompressed_dir, analysis_dir, results_dir):
         if output_dir.exists():
             shutil.rmtree(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
+
+    source_reference_path = decompressed_dir / scene_name / "source_original.png"
+    source_reference_path.parent.mkdir(parents=True, exist_ok=True)
+    rgb_image.save(source_reference_path)
 
     results: List[ResultRow] = []
     block_rows: List[BlockResultRow] = []
     block_value_features: List[BlockValueFeatureRow] = []
 
     for bmp_type in BMP_ORDER:
-        variant = variants[bmp_type]
-        pixels = variant.pixels
+        original_variant = original_variants[bmp_type]
+
+        pad_index = _closest_palette_index(original_variant.palette, (PAD_BG_VALUE, PAD_BG_VALUE, PAD_BG_VALUE))
+        padded_pixels = _pad_index_pixels(original_variant.pixels, padded_width, padded_height, pad_index)
 
         bmp_path = bmp_dir / f"{scene_name}_{bmp_type}.bmp"
         png_preview_path = preview_dir / f"{scene_name}_{bmp_type}.png"
         pixel_path = pixel_dir / f"{scene_name}_{bmp_type}_pixels.txt"
 
-        write_indexed_bmp(bmp_path, pixels, variant.bpp, variant.palette)
-        _save_indexed_preview_png(png_preview_path, pixels, variant.palette)
-        _write_pixel_values(pixel_path, pixels)
+        write_indexed_bmp(bmp_path, padded_pixels, original_variant.bpp, original_variant.palette)
+        _save_indexed_preview_png(png_preview_path, original_variant.pixels, original_variant.palette)
+        _write_pixel_values(pixel_path, original_variant.pixels)
 
-        block_rows.extend(_compute_block64_analysis(scene_name, bmp_type, pixels))
-        block_value_features.extend(_compute_block_value_features(scene_name, bmp_type, pixels))
+        block_rows.extend(_compute_block64_analysis(scene_name, bmp_type, padded_pixels))
+        block_value_features.extend(_compute_block_value_features(scene_name, bmp_type, padded_pixels))
 
         src_bmp = read_indexed_bmp(bmp_path)
         original_size = bmp_path.stat().st_size
 
         for scan_mode in SCAN_ORDER:
             encoded_path = encoded_dir / scene_name / bmp_type / f"{scan_mode}.rle"
-            compressed_size = _encode_file(src_bmp, scan_mode, encoded_path)
+            compressed_size = _encode_file(
+                src_bmp,
+                scan_mode,
+                encoded_path,
+                original_width=original_w,
+                original_height=original_h,
+            )
 
-            restored_path = decompressed_dir / scene_name / bmp_type / f"{scan_mode}.bmp"
+            restored_path: Optional[Path] = None
+            if scan_mode == "row_major":
+                restored_path = decompressed_dir / scene_name / f"{bmp_type}.bmp"
             restored_pixels = _decode_file(encoded_path, restored_path)
-            lossless = restored_pixels == src_bmp.pixels
+            lossless = restored_pixels == original_variant.pixels
 
             results.append(
                 ResultRow(
@@ -529,6 +707,14 @@ def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) ->
     bmp_block_rows: List[BmpBlockComparisonRow] = []
     for bmp_type in BMP_ORDER:
         bmp_block_rows.extend(_compute_bmp_block_comparison(scene_name, bmp_type, block_rows))
+
+    for bmp_type in BMP_ORDER:
+        _write_block_visualizations(
+            scene_name=scene_name,
+            bmp_type=bmp_type,
+            bmp_block_rows=bmp_block_rows,
+            output_dir=analysis_dir,
+        )
 
     bmp_summary = _compute_bmp_type_summary(scene_name, results, bmp_block_rows)
 
@@ -557,7 +743,6 @@ def run_pipeline(project_root: Path, input_image_path: Optional[Path] = None) ->
         results_dir / "block64_value_features.csv",
         results_dir / "block64_value_features.json",
     )
-
     _write_markdown_tables(
         output_path=results_dir / "results_tables.md",
         scene_name=scene_name,

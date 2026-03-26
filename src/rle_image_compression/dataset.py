@@ -65,35 +65,39 @@ def quantize_pal8(image: Matrix) -> Matrix:
     return [[_clamp(value, 0, 255) for value in row] for row in image]
 
 
-def _fit_to_canvas_rgb(image: Image.Image, size: int = 512, bg_value: int = 18) -> Image.Image:
+def compute_block_aligned_size(width: int, height: int, block_size: int = 64) -> Tuple[int, int]:
+    if width <= 0 or height <= 0:
+        raise ValueError("Invalid image dimensions")
+    padded_w = ((width + block_size - 1) // block_size) * block_size
+    padded_h = ((height + block_size - 1) // block_size) * block_size
+    return padded_w, padded_h
+
+
+def pad_rgb_to_block_grid(
+    image: Image.Image,
+    block_size: int = 64,
+    bg_value: int = 18,
+) -> Tuple[Image.Image, Tuple[int, int]]:
     src_w, src_h = image.size
     if src_w == 0 or src_h == 0:
         raise ValueError("Invalid image dimensions")
 
-    scale = min(size / src_w, size / src_h)
-    new_w = max(1, int(round(src_w * scale)))
-    new_h = max(1, int(round(src_h * scale)))
-    resized = image.resize((new_w, new_h), Image.Resampling.BICUBIC)
-
-    canvas = Image.new("RGB", (size, size), color=(bg_value, bg_value, bg_value))
-    offset_x = (size - new_w) // 2
-    offset_y = (size - new_h) // 2
-    canvas.paste(resized, (offset_x, offset_y))
-    return canvas
+    padded_w, padded_h = compute_block_aligned_size(src_w, src_h, block_size=block_size)
+    canvas = Image.new("RGB", (padded_w, padded_h), color=(bg_value, bg_value, bg_value))
+    # Keep top-left alignment so cropping after decode is deterministic.
+    canvas.paste(image, (0, 0))
+    return canvas, (padded_w, padded_h)
 
 
 def load_default_skimage_rocket(
     output_preview_path: Path,
-    size: int = 384,
-    bg_value: int = 18,
 ) -> Tuple[str, Image.Image]:
     arr = _to_uint8(data.rocket())
     image = Image.fromarray(arr, mode="RGB")
-    canvas = _fit_to_canvas_rgb(image, size=size, bg_value=bg_value)
 
     output_preview_path.parent.mkdir(parents=True, exist_ok=True)
-    canvas.save(output_preview_path)
-    return "skimage_rocket", canvas
+    image.save(output_preview_path)
+    return "skimage_rocket", image
 
 
 def build_variants_for_image(source_name: str, base_image_rgb: Image.Image) -> Tuple[str, Dict[str, VariantSpec]]:
@@ -124,14 +128,11 @@ def build_variants_for_image(source_name: str, base_image_rgb: Image.Image) -> T
 def load_external_source_with_padding(
     image_path: Path,
     output_preview_path: Path,
-    size: int = 384,
-    bg_value: int = 18,
 ) -> Tuple[str, Image.Image]:
     image = Image.open(image_path).convert("RGBA").convert("RGB")
-    canvas = _fit_to_canvas_rgb(image, size=size, bg_value=bg_value)
 
     output_preview_path.parent.mkdir(parents=True, exist_ok=True)
-    canvas.save(output_preview_path)
+    image.save(output_preview_path)
 
     source_name = image_path.stem
-    return source_name, canvas
+    return source_name, image

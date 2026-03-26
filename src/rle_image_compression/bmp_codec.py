@@ -187,9 +187,14 @@ def build_bmp_from_header_and_pixels(header_bytes: bytes, pixels: Matrix, bpp: i
 
     output = bytearray(header_bytes)
 
-    # Update BMP size and image size fields to keep the output valid.
+    # Update BMP size and image geometry fields to keep the output valid.
     file_size = len(output) + len(pixel_data)
     struct.pack_into("<I", output, 2, file_size)
+
+    # BITMAPINFOHEADER width/height fields.
+    if len(output) >= 26:
+        struct.pack_into("<I", output, 18, width)
+        struct.pack_into("<I", output, 22, height)
 
     if len(output) >= 38:
         struct.pack_into("<I", output, 34, len(pixel_data))
